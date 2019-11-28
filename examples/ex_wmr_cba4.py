@@ -22,6 +22,8 @@ directory as the script.  If you are using the drivers provided by West
 Mountain Radio, then place mpusbapi.dll into the same directory as the 
 Python script.
 """
+import sys
+sys.path.append("..")
 
 from wmr_cba import wmr_cba
 import time
