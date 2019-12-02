@@ -73,15 +73,15 @@ class CBACC:
 
     get_serial_number() - Returns the serial number of the connected CBACC.
 
-    do_start(amps, vstop) - Starts performing a test by drawing 'amps' current
+    charge_start(amps, vstop) - Starts performing a test by drawing 'amps' current
     through the CBACC.  If 'vstop' is provided, will automatically stop drawing
     current if the voltage of the battery goes below specified value.
 
-    do_stop() - Stops performing a test, stops all current being drawn.
+    charge_stop() - Stops performing a test, stops all current being drawn.
 
     get_voltage() - Gets the voltage being read by the CBACC.
 
-    get_set_current() - Gets the current that was set by the do_start().
+    get_set_current() - Gets the current that was set by the charge_start().
 
     get_measured_current() - Gets the actual current that is being drawn by the
     CBACC.
@@ -132,7 +132,7 @@ class CBACC:
         Gracefully close connection to CBACC.
         """
         debug("CBACC.close()")
-        self.do_stop()
+        self.charge_stop()
         if self.__usb_if:
             self.__usb_if.close()
         self.__usb_if = None
@@ -295,70 +295,69 @@ class CBACC:
         return self.__config_bytes[4] + (self.__config_bytes[5] * 0x100) + (self.__config_bytes[6] * 0x10000) + (self.__config_bytes[7] * 0x1000000)
         #end get_serial_number
 
-    def do_start(self, amps, vstop=0):
+    def charge_start(self):
         """
         Tells the CBA to start drawing 'amps' load, in float, from it's source.  
         If voltage of supply goes below 'vstop', then the unit will stop drawing
         current (to prevent over discharing a battery).  'vstop' is a float,
         or send 0 to not use vstop.
 
-        Use do_stop() to stop drawing current.
+        Use charge_stop() to stop drawing current.
 
         The CBACC has a watchdog timer (WDT) that stops drawing current if
         the USB connection goes inactive.  To prevent this from happening,
         this function starts a thread that keeps the CBACC alive.
         """
-        debug("CBACC.do_start()")
-        self.do_stop()
+        debug("CBACC.charge_start()")
+        self.charge_stop()
 
-        amps *= 1000.0 * 1000.0
-        amps = int(amps)
-        tx = bytearray(16)
+        tx = bytearray(11)
         tx[0] = 0x53    #CMD
-        tx[1] = 0x03    #FLAGS
-        if vstop:
-            tx[1] |= 0x40
+        tx[1] = 0x00    #STATUS
         tx[2] = 0
-        tx[3] = (amps >> 0) & 0xff  #LOAD
-        tx[4] = (amps >> 8) & 0xff
-        tx[5] = (amps >> 16) & 0xff
-        tx[6] = (amps >> 24) & 0xff
-        tx[7] = 0   #FAN
-        tx[8] = 0   #LED1
-        tx[9] = 0   #LED2
-        tx[10] = 0  #IOTRIS
-        tx[11] = 0  #IOPORT
-        vstop *= 1000.0 * 1000.0
-        vstop = int(vstop)
-        tx[12] = (vstop >> 0) & 0xff  #VSTOP
-        tx[13] = (vstop >> 8) & 0xff
-        tx[14] = (vstop >> 16) & 0xff
-        tx[15] = (vstop >> 24) & 0xff
-
+        tx[3] = 0   #LED1
+        tx[4] = 0   #LED2  
+        tx[5] = 0   #LED3
+        tx[6] = 0x03    #OUTA
+        tx[7] = 0x03    #OUTB
+        tx[8] = 0x03    #OUTC
+        tx[9] = ((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8])
+        tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0b1111111)
+        
         self.get_status_response(tx)
 
         self.__thread = CBACC.__worker_thread(self)
         self.__thread.start()
-        #end do_start_draw()
+        #end charge_start_draw()
 
-    def do_stop(self):
+    def charge_stop(self):
         """
         End a running test / current draw.
 
-        Stops the tread started by do_start().
+        Stops the tread started by charge_start().
         """
-        debug("CBACC.do_stop()")
+        debug("CBACC.charge_stop()")
         if (self.__thread and self.__thread.isAlive()):
             self.__thread.stop()
             self.__thread.join(None)
             self.__thread = None
 
         if (self.is_valid()):
-            tx = bytearray(16)
-            tx[0] = 0x53
-            tx[1] = 1
+            tx = bytearray(11)
+            tx = bytearray(11)
+            tx[0] = 0x53    #CMD
+            tx[1] = 0x00    #STATUS
+            tx[2] = 0
+            tx[3] = 0   #LED1
+            tx[4] = 0   #LED2  
+            tx[5] = 0   #LED3
+            tx[6] = 0x02    #OUTA
+            tx[7] = 0x02    #OUTB
+            tx[8] = 0x02    #OUTC
+            tx[9] = ((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8])
+            tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0b1111111)
             self.get_status_response(tx)
-        #end do_stop()
+        #end charge_stop()
 
     def get_status_response(self, force_xmit=None, force_rcv=None):
         """
@@ -383,7 +382,7 @@ class CBACC:
             return force_rcv
 
         if not force_xmit:
-            force_xmit = bytearray(16)
+            force_xmit = bytearray(11)
             force_xmit[0] = 0x53
 
         self.__usb_if.write(force_xmit, 1000)
@@ -396,32 +395,6 @@ class CBACC:
         return None
         #end get_status_response()
 
-    def get_voltage(self):
-        """
-        Returns the measured voltage (float)
-        """
-        status = self.get_status_response()
-        volts = status[20] + (status[21] * 0x100) + (status[22] * 0x10000) + (status[23] * 0x1000000)
-        volts = float(volts)
-        volts /= (1000.0 * 1000.0)
-        return volts
-        #end get_voltage
-
-    def get_set_current(self):
-        """
-        Returns the test current (amps, as a float), or 0.0 if a test is not
-        running.
-        """
-        status = self.get_status_response()
-        flags = status[1]
-        if (flags & 0x2) == 0:
-            return 0.0  #test isn't running
-        current = status[3] + (status[4] * 0x100) + (status[5] * 0x10000) + (status[6] * 0x1000000)
-        current = float(current)
-        current /= (1000.0 * 1000.0)
-        return current
-        #end get_set_current()
-
     def get_measured_current(self):
         """
         Returns the measured current (amps, as a float).  The feedback of the
@@ -430,7 +403,7 @@ class CBACC:
         as the fuse being blown or the device power limiting the test.
         """
         status = self.get_status_response()
-        current = status[16] + (status[17] * 0x100) + (status[18] * 0x10000) + (status[19] * 0x1000000)
+        current = status[10] + (status[11] * 0x100) + (status[12] * 0x10000) + (status[13] * 0x1000000)
         current = float(current)
         current /= (1000.0 * 1000.0)
         return current
@@ -438,30 +411,12 @@ class CBACC:
 
     def is_running(self):
         """
-        Returns True if a test is currently running and the CBA is drawing
-        current.
+        Returns True if a test is currently running and the CBCC is passing through current
         """
         status = self.get_status_response()
-        return ((status[1] & 2) == 2)
+        return ((status[8] & 3) == 3)
         #end is_running()
 
-    def is_power_limited(self):
-        """
-        Returns True if test is not running to user specified parameters because
-        it has exceeded maximum power or current limits of the device.
-        """
-        status = self.get_status_response()
-        return ((status[1] & 0x10) == 0x10)
-        #end is_power_limited()
-
-    def is_high_temp(self):
-        """
-        Returns True if test was aborted because the temperature of the CBA
-        got too high and exceeded safety limits.
-        """
-        status = self.get_status_response()
-        return ((status[1] & 0x20) == 0x20)
-        #end is_power_limited()
     #end class CBACC
 
 class MpOrLibUsb:
@@ -942,11 +897,8 @@ def __test_mpusbapi():
 
 def __test_cbacc():
     def show_status():
-        disp = "Volts=" + str(cba.get_voltage()) + "V"
-        disp += " Load=" + str(cba.get_set_current()) + "A"
-        disp += " Feedback=" + str(cba.get_measured_current()) + "A"
+        disp += " Charging=" + str(cba.get_measured_current()) + "A"
         disp += " Running=" + str(cba.is_running())
-        disp += " PLim=" + str(cba.is_power_limited())
         print(disp)
         #end show_status()
 
@@ -971,7 +923,7 @@ def __test_cbacc():
 
     load = 0.2
     print("Starting load = " + str(load))
-    cba.do_start(load)
+    cba.charge_start(load)
 
     reads = 10
     while reads:
@@ -979,7 +931,7 @@ def __test_cbacc():
         show_status()
         reads -= 1
     
-    cba.do_stop()
+    cba.charge_stop()
     print("Stopped test")
 
     reads = 5
@@ -990,7 +942,7 @@ def __test_cbacc():
 
     load = 0.1
     print("Starting load = " + str(load))
-    cba.do_start(load)
+    cba.charge_start(load)
 
     reads = 10
     while reads:
@@ -998,7 +950,7 @@ def __test_cbacc():
         show_status()
         reads -= 1
     
-    cba.do_stop()
+    cba.charge_stop()
     print("Stopped test")
 
     reads = 5
