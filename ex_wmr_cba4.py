@@ -25,38 +25,43 @@ Python script.
 import sys
 sys.path.append("..")
 
-from wmr_cba import wmr_cbacc
+from wmr_cba import wmr_cba
 import time
 
-def cbacc_example():
+def cba4_example():
     def show_status():
-        disp = " Feedback=" + str(cbacc.get_measured_current()) + "A"
-        disp += " Running=" + str(cbacc.is_running())
+        disp = "Volts=" + str(cba.get_voltage()) + "V"
+        disp += " Load=" + str(cba.get_set_current()) + "A"
+        disp += " Feedback=" + str(cba.get_measured_current()) + "A"
+        disp += " Running=" + str(cba.is_running())
+        disp += " PLim=" + str(cba.is_power_limited())
         print(disp)
         #end show_status()
 
-    test = wmr_cbacc.CBACC.test()
+    test = wmr_cba.CBA4.test()
     if test:
         print("Test ERROR: " + test)
     else:
         print("Test OK")
 
-    devices = wmr_cbacc.CBACC.scan()
+    devices = wmr_cba.CBA4.scan()
     print("Found "+str(len(devices))+" devices.")
 
-    cbacc = wmr_cbacc.CBACC()
+    cba = wmr_cba.CBA4()
 
-    if not cbacc.is_valid():
+    if not cba.is_valid():
         print("ERROR!  Couldn't open a device!")
         exit(-1)
     
-    print("Opened CBACC, serial #" + str(cbacc.get_serial_number()))
+    print("Opened CBA4, serial #" + str(cba.get_serial_number()))
 
     show_status()
 
-    print("Charging started")
+    load = 0.15
 
-    cbacc.charge_start()
+    print("Starting load = " + str(load))
+
+    cba.do_start(load)
 
     reads = 10
     while reads:
@@ -64,7 +69,7 @@ def cbacc_example():
         show_status()
         reads -= 1
     
-    cbacc.charge_stop()
+    cba.do_stop()
     print("Stopped test")
 
     reads = 5
@@ -73,12 +78,12 @@ def cbacc_example():
         show_status()
         reads -= 1
 
-    cbacc.close()
+    cba.close()
 
     print("Done")
-    #end __test_cbacc
+    #end __test_cba4
 
 if __name__ == "__main__":
-    print("running ex_wmr_cbacc.py")
+    print("running ex_wmr_cba4.py")
 
-    cbacc_example()
+    cba4_example()
