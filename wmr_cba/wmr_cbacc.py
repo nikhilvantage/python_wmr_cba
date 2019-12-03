@@ -309,7 +309,7 @@ class CBACC:
         this function starts a thread that keeps the CBACC alive.
         """
         debug("CBACC.charge_start()")
-        self.charge_stop()
+        # self.charge_stop()
 
         tx = bytearray(11)
         tx[0] = 0x53    #CMD
