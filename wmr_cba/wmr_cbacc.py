@@ -163,7 +163,7 @@ class CBACC:
             debug("CBACC.__worker_thread.__init__()")
             threading.Thread.__init__(self)
             self.__cba = cba
-            self.__tx_bytes = bytearray(16)
+            self.__tx_bytes = bytearray(11)
             self.__tx_bytes[0] = 0x53
             self.__lock = threading.Lock()
             self.__rx_bytes_unsynced = bytearray(65)
@@ -322,8 +322,9 @@ class CBACC:
         tx[7] = 0x03    #OUTB
         tx[8] = 0x03    #OUTC
         tx[9] = ((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8])
-        tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0b1111111)
+        tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0xFF)
         
+        # print(tx[7])
         self.get_status_response(tx)
 
         self.__thread = CBACC.__worker_thread(self)
@@ -334,7 +335,7 @@ class CBACC:
         """
         End a running test / current draw.
 
-        Stops the tread started by charge_start().
+        Stops the thread started by charge_start().
         """
         debug("CBACC.charge_stop()")
         if (self.__thread and self.__thread.isAlive()):
@@ -344,18 +345,17 @@ class CBACC:
 
         if (self.is_valid()):
             tx = bytearray(11)
-            tx = bytearray(11)
             tx[0] = 0x53    #CMD
-            tx[1] = 0x00    #STATUS
-            tx[2] = 0
-            tx[3] = 0   #LED1
-            tx[4] = 0   #LED2  
-            tx[5] = 0   #LED3
-            tx[6] = 0x02    #OUTA
-            tx[7] = 0x02    #OUTB
-            tx[8] = 0x02    #OUTC
-            tx[9] = ((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8])
-            tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0b1111111)
+            # tx[1] = 0x00    #STATUS
+            # tx[2] = 0
+            # tx[3] = 0   #LED1
+            # tx[4] = 0   #LED2  
+            # tx[5] = 0   #LED3
+            # tx[6] = 0x02    #OUTA
+            # tx[7] = 0x02    #OUTB
+            # tx[8] = 0x02    #OUTC
+            # tx[9] = ((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8])
+            # tx[10] = (~((((((((tx[0] ^ tx[1]) ^ tx[2]) ^ tx[3]) ^ tx[4]) ^ tx[5]) ^ tx[6]) ^ tx[7]) ^ tx[8]) & 0xFF)
             self.get_status_response(tx)
         #end charge_stop()
 

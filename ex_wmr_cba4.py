@@ -35,7 +35,7 @@ def cba4_example():
         disp += " Feedback=" + str(cba.get_measured_current()) + "A"
         disp += " Running=" + str(cba.is_running())
         disp += " PLim=" + str(cba.is_power_limited())
-        print(disp)
+        print(disp)pi/
         #end show_status()
 
     test = wmr_cba.CBA4.test()

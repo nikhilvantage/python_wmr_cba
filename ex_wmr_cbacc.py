@@ -1,4 +1,5 @@
 """
+
 A simple example of using the wmr_cba CBA4 python library.
 
 For more information about the wmr_cba package, drivers and documentation, see
@@ -60,6 +61,7 @@ def cbacc_example():
 
     reads = 10
     while reads:
+        cbacc.charge_start()
         time.sleep(1)
         show_status()
         reads -= 1
